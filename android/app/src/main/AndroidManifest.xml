@@ -1,8 +1,63 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- Camera Permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- Microphone permission (for TTS and any audio features) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
+    <!-- Storage permissions (for saving snapshots, logs) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- Internet permission (if you need to download ML models) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Network state permission (for checking connectivity) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Vibration permission (for haptic feedback) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Notifications permission -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Required for Android 12+ to use Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    
+    <!-- Required for Android 10+ to use background location if needed -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" 
+        android:maxSdkVersion="30" />
+    
+    <!-- Hardware features -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+    
+    <!-- Optional: If you want to use phone flashlight -->
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+    
+    <!-- For depth sensor/ToF camera if available -->
+    <uses-feature android:name="android.hardware.camera.capability.depth" android:required="false" />
+    
+    <!-- For vibration feedback -->
+    <uses-feature android:name="android.hardware.vibrator" android:required="false" />
+    
+    <!-- For TTS engine -->
+    <uses-feature android:name="android.hardware.audio.output" android:required="false" />
+    
     <application
         android:label="auralight"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:theme="@style/LaunchTheme"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
+        
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -11,26 +66,69 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait">
+            
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme"
+                />
+            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            
+            <!-- Add these intent filters for better accessibility -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="auralight" />
+            </intent-filter>
         </activity>
+        
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            
+        <!-- Camera permissions explanation for Play Store -->
+        <meta-data
+            android:name="com.google.android.gms.vision.DEPENDENCIES"
+            android:value="camera" />
+            
+        <!-- Optional: If you plan to use Google Play Services for ML Kit -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+            
+        <!-- For Android 11+ file access -->
+        <meta-data
+            android:name="android.permission.QUERY_ALL_PACKAGES"
+            tools:ignore="QueryAllPackagesPermission" />
+            
+        <!-- For keeping screen on during navigation -->
+        <meta-data
+            android:name="android.keep_screen_on"
+            android:value="true" />
+            
+        <!-- Add TTS engine -->
+        <meta-data
+            android:name="com.google.android.tts.voice"
+            android:resource="@array/tts_voices" />
+            
+        <!-- Add splash screen for better UX -->
+        <meta-data
+            android:name="io.flutter.embedding.android.SplashScreenDrawable"
+            android:resource="@drawable/launch_background" />
     </application>
+    
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
@@ -41,5 +139,31 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        
+        <!-- For TTS engines -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        
+        <!-- For camera apps (optional) -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        
+        <!-- For file managers (optional) -->
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+        </intent>
+        
+        <!-- For Bluetooth devices -->
+        <intent>
+            <action android:name="android.bluetooth.devicepicker.action.LAUNCH" />
+        </intent>
+        
+        <!-- For USB devices (if using external sensors) -->
+        <intent>
+            <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+        </intent>
     </queries>
+    
 </manifest>
