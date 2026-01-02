@@ -1,6 +1,6 @@
-# auralight
+# AURA_LIGHT
 
-A new Flutter project.
+A new Flutter project and app for visually impaired.
 
 ## Getting Started
 
