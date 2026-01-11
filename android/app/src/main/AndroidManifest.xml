@@ -45,6 +45,9 @@
     
     <!-- For vibration feedback -->
     <uses-feature android:name="android.hardware.vibrator" android:required="false" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.SEND_SMS"/>
+
     
     <!-- For TTS engine -->
     <uses-feature android:name="android.hardware.audio.output" android:required="false" />

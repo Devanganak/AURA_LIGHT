@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'obstacle_navigation.dart'; // Updated import for real-time navigation
+import 'obstacle_navigation.dart';
+import 'emergency_distress.dart'; // 🆘 EMERGENCY FEATURE
 
 void main() {
   runApp(MyApp());
@@ -33,12 +34,23 @@ class BillReaderScreen extends StatefulWidget {
 }
 
 class _BillReaderScreenState extends State<BillReaderScreen> {
+  // 🆘 EMERGENCY FEATURE
+  final EmergencyDistressService emergencyService = EmergencyDistressService();
+
   File? _image;
   String _extractedText = "";
   final picker = ImagePicker();
   final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final FlutterTts flutterTts = FlutterTts();
   bool _isLoading = false;
+  bool _emergencyActive = true; // Track emergency listening status
+
+  // 🆘 START LISTENING WHEN APP OPENS
+  @override
+  void initState() {
+    super.initState();
+    emergencyService.startListening();
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await picker.pickImage(source: source);
@@ -73,12 +85,58 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
     await flutterTts.speak(_extractedText);
   }
 
+  // 🆘 EMERGENCY BUTTON FUNCTION
+  void _triggerEmergency() {
+    emergencyService.sendEmergencySMS();
+    
+    // Speak confirmation
+    flutterTts.speak("Emergency alert sent to contacts");
+    
+    // Show visual feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🆘 Emergency SMS Sent!'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // 🆘 TOGGLE EMERGENCY LISTENING
+  void _toggleEmergencyListening() {
+    setState(() {
+      _emergencyActive = !_emergencyActive;
+    });
+    
+    if (_emergencyActive) {
+      emergencyService.startListening();
+      flutterTts.speak("Emergency listening activated");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Emergency listening activated'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      emergencyService.stopListening();
+      flutterTts.speak("Emergency listening deactivated");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏸️ Emergency listening paused'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     textRecognizer.close();
     flutterTts.stop();
+    emergencyService.stopListening(); // 🆘 Stop emergency listening
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +159,12 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
             },
             tooltip: 'Real-Time Obstacle Detection',
           ),
+          // 🆘 EMERGENCY BUTTON IN APP BAR
+          IconButton(
+            icon: Icon(Icons.emergency, color: Colors.red),
+            onPressed: _triggerEmergency,
+            tooltip: 'Send Emergency Alert',
+          ),
         ],
       ),
       drawer: Drawer(
@@ -118,48 +182,31 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.visibility_off,
-                    size: 40,
-                    color: Colors.white,
-                  ),
+                  Icon(Icons.visibility_off, size: 40, color: Colors.white),
                   SizedBox(height: 10),
                   Text(
                     'Auralight',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 4),
                   Text(
                     'Your Visual Assistant',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
+                        color: Colors.white.withOpacity(0.9), fontSize: 14),
                   ),
                 ],
               ),
             ),
             ListTile(
-              leading: Icon(Icons.receipt_long, color: Colors.green[700]),
-              title: Text('Bill Reader',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
-              onTap: () {
-                Navigator.pop(context);
-              },
-              tileColor: Colors.green[50],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              leading: Icon(Icons.receipt_long),
+              title: Text('Bill Reader'),
+              onTap: () => Navigator.pop(context),
             ),
-            SizedBox(height: 8),
             ListTile(
-              leading: Icon(Icons.directions_walk, color: Colors.blue[700]),
-              title: Text('Real-Time Navigation',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
+              leading: Icon(Icons.directions_walk),
+              title: Text('Real-Time Navigation'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -169,52 +216,23 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
                   ),
                 );
               },
-              tileColor: Colors.blue[50],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
-            SizedBox(height: 8),
+            // 🆘 EMERGENCY OPTION IN DRAWER
+            Divider(),
             ListTile(
-              leading: Icon(Icons.settings, color: Colors.grey[700]),
-              title: Text('Settings',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
+              leading: Icon(Icons.emergency, color: Colors.red),
+              title: Text('Emergency Distress', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
-                // Add settings screen here later
+                _triggerEmergency();
               },
             ),
-            Divider(height: 40),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'Features',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             ListTile(
-              leading: Icon(Icons.text_fields, size: 18, color: Colors.grey),
-              title: Text('Text Recognition',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-            ),
-            ListTile(
-              leading: Icon(Icons.volume_up, size: 18, color: Colors.grey),
-              title: Text('Text-to-Speech',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-            ),
-            ListTile(
-              leading: Icon(Icons.camera, size: 18, color: Colors.grey),
-              title: Text('Real-Time Camera',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700])),
-            ),
-            ListTile(
-              leading: Icon(Icons.warning, size: 18, color: Colors.grey),
-              title: Text('Obstacle Detection',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+              leading: Icon(_emergencyActive ? Icons.mic_off : Icons.mic, 
+                  color: _emergencyActive ? Colors.orange : Colors.green),
+              title: Text(_emergencyActive ? 'Pause Emergency Listening' : 'Activate Emergency Listening'),
+              subtitle: Text('Voice command: Say "HELP"'),
+              onTap: _toggleEmergencyListening,
             ),
           ],
         ),
@@ -222,235 +240,205 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Header
-            Text(
-              'Bill Reader',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.green[900],
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Upload a bill to extract and hear text',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: 20),
-
-            // Image Display Area
+            // 🆘 EMERGENCY STATUS INDICATOR
             Container(
-              height: 250,
-              width: double.infinity,
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+                color: _emergencyActive ? Colors.red.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _emergencyActive ? Colors.red : Colors.grey,
+                  width: 1,
+                ),
               ),
-              child: _image != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        _image!,
-                        height: 250,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.receipt_long,
-                              size: 60, color: Colors.grey[400]),
-                          SizedBox(height: 10),
-                          Text(
-                            'No bill image selected',
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 16,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            'Take a photo or choose from gallery',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _emergencyActive ? Icons.security : Icons.security_outlined,
+                    color: _emergencyActive ? Colors.red : Colors.grey,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    _emergencyActive ? '🆘 EMERGENCY LISTENING ACTIVE' : 'Emergency Listening Paused',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _emergencyActive ? Colors.red : Colors.grey,
                     ),
-            ),
-            SizedBox(height: 20),
-
-            // Extracted Text Area
-            Expanded(
-              child: Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.text_fields, color: Colors.green[700]),
-                        SizedBox(width: 8),
-                        Text(
-                          'Extracted Text',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[900],
-                          ),
-                        ),
-                        Spacer(),
-                        if (_extractedText.isNotEmpty)
-                          IconButton(
-                            icon: Icon(Icons.volume_up, color: Colors.blue),
-                            onPressed: _speakText,
-                            tooltip: 'Read aloud',
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    Expanded(
-                      child: _isLoading
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(
-                                    color: Colors.green,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'Extracting text...',
-                                    style: TextStyle(color: Colors.grey[600]),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : SingleChildScrollView(
-                              child: Text(
-                                _extractedText.isEmpty
-                                    ? 'Upload a bill to extract text. The extracted text will appear here.'
-                                    : _extractedText,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.grey[800],
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 20),
-
-            // Quick Action Buttons
+            
+            // EXISTING IMAGE PICKER BUTTONS
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.camera_alt, size: 20),
-                    label: Text("Camera"),
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.camera_alt),
+                  label: Text('Take Photo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   ),
+                  onPressed: () => _pickImage(ImageSource.camera),
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.photo_library, size: 20),
-                    label: Text("Gallery"),
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.blue[700],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.photo_library),
+                  label: Text('Gallery'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   ),
+                  onPressed: () => _pickImage(ImageSource.gallery),
                 ),
               ],
             ),
-            SizedBox(height: 12),
-
-            // Navigation Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: Icon(Icons.camera, size: 22),
-                label: Text('REAL-TIME OBSTACLE NAVIGATION'),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ObstacleDetection(),
+            SizedBox(height: 20),
+            
+            // IMAGE PREVIEW
+            if (_image != null)
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      'Captured Image:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.orange[700],
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 4,
+                    SizedBox(height: 10),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Image.file(_image!, fit: BoxFit.contain),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            
+            // LOADING INDICATOR
+            if (_isLoading)
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 10),
+                    Text('Extracting text...'),
+                  ],
+                ),
+              ),
+            
+            // EXTRACTED TEXT
+            if (_extractedText.isNotEmpty && !_isLoading)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Extracted Text:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Expanded(
+                      child: Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            _extractedText,
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            if (_image == null && _extractedText.isEmpty && !_isLoading)
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 80,
+                      color: Colors.grey[400],
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      'No image selected',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      'Take a photo or choose from gallery',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            SizedBox(height: 20),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_extractedText.isNotEmpty) {
-            _speakText();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('No text to read. Upload a bill first.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-        child: Icon(Icons.volume_up),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        tooltip: 'Read extracted text',
+      // EXISTING FLOATING ACTION BUTTONS
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            FloatingActionButton(
+              onPressed: () {
+                if (_extractedText.isNotEmpty) {
+                  _speakText();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('No text to read'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: Icon(Icons.volume_up),
+              tooltip: 'Read Text Aloud',
+            ),
+            // 🆘 EMERGENCY FLOATING BUTTON
+            FloatingActionButton(
+              onPressed: _triggerEmergency,
+              backgroundColor: Colors.red,
+              child: Icon(Icons.emergency),
+              tooltip: 'Emergency Distress',
+            ),
+          ],
+        ),
       ),
     );
   }

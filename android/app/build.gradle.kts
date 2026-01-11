@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.auralight"
-    compileSdk = 34
+    compileSdk = 36
 
 
     // Required by your plugins
