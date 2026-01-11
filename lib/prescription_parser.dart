@@ -3,8 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest_all.dart' as tzdata;
-import 'package:flutter/material.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+
 
 class PrescriptionParser {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -60,7 +60,7 @@ class PrescriptionParser {
 
   static Future<void> _initTimeZone() async {
     if (_tzInitialized) return;
-    tzdata.initializeTimeZones();
+    tz.initializeTimeZones();
     try {
       tz.setLocalLocation(tz.getLocation(tz.local.name));
     } catch (_) {
@@ -181,8 +181,6 @@ class PrescriptionParser {
         '${med['name']} — ${med['dosage']}',
         scheduled,
         NotificationDetails(android: androidDetails, iOS: iosDetails),
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.wallClockTime,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );

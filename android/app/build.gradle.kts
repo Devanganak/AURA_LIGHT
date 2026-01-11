@@ -9,10 +9,6 @@ plugins {
 
 android {
     namespace = "com.example.auralight"
-<<<<<<< HEAD
-    compileSdk = 36
-=======
->>>>>>> 5cad97d (Initial commit - AURA_LIGHT)
 
     // REQUIRED by camera, image_picker, mlkit, etc.
     compileSdk = 36
@@ -22,11 +18,14 @@ android {
 
     defaultConfig {
         applicationId = "com.example.auralight"
-        minSdk = flutter.minSdkVersion
+        // Manually set to 24 for Medicine Scanning compatibility
+        minSdk = 24 
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+    
+    // ... (Keep the rest of your file as is)
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

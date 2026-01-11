@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "693811932076",
+    "project_id": "auralight1",
+    "storage_bucket": "auralight1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693811932076:android:a94b4832c80557855c6809",
+        "android_client_info": {
+          "package_name": "com.example.auralight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDv582-J96suy9FBh4k18gd_4AZmiEfhQQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

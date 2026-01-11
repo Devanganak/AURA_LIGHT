@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:auralight/medicine_reader_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -17,6 +18,8 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -26,13 +29,18 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      // Check the auth state here
+      home: FirebaseAuth.instance.currentUser == null 
+          ? const LoginScreen() 
+          : const BillReaderScreen(),
     );
   }
 }
 
 
 class BillReaderScreen extends StatefulWidget {
+  const BillReaderScreen({super.key});
+
   @override
   _BillReaderScreenState createState() => _BillReaderScreenState();
 }
@@ -135,6 +143,7 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
     user?.email ?? "No Email",
     style: const TextStyle(fontWeight: FontWeight.bold),
   ),
+  
   accountEmail: Text(
     "UID: ${user?.uid ?? "Not available"}",
     style: const TextStyle(fontSize: 12),
@@ -176,6 +185,22 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
+            // --- ADD THIS MEDICINE BUTTON HERE ---
+// Inside your Drawer's ListView
+ListTile(
+  leading: const Icon(Icons.medication, color: Colors.purple),
+  title: const Text('Medicine Reader', style: TextStyle(fontWeight: FontWeight.w500)),
+  onTap: () {
+    Navigator.pop(context); // Close the drawer
+    Navigator.push(
+      context, 
+      MaterialPageRoute(builder: (_) => const MedicineReaderScreen())
+    );
+  },
+  tileColor: Colors.purple[50],
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+),
+const SizedBox(height: 12), // Spacing between buttons
             SizedBox(height: 8),
             ListTile(
               leading: Icon(Icons.settings, color: Colors.grey[700]),
@@ -316,6 +341,28 @@ ListTile(
                     ),
             ),
             SizedBox(height: 20),
+            // --- MEDICINE MODULE DASHBOARD BUTTON ---
+SizedBox(
+  width: double.infinity,
+  child: ElevatedButton.icon(
+    icon: const Icon(Icons.health_and_safety, size: 22),
+    label: const Text('MEDICINE PRESCRIPTION READER'),
+    onPressed: () {
+      Navigator.push(
+        context, 
+        MaterialPageRoute(builder: (_) => const MedicineReaderScreen())
+      );
+    },
+    style: ElevatedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      backgroundColor: Colors.purple[700], 
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: 5,
+    ),
+  ),
+),
+const SizedBox(height: 12),
 
             // Extracted Text Area
             Expanded(
@@ -474,10 +521,10 @@ ListTile(
             );
           }
         },
-        child: Icon(Icons.volume_up),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         tooltip: 'Read extracted text',
+        child: Icon(Icons.volume_up),
       ),
     );
   }

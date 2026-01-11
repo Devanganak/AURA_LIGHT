@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class ObstacleDetection extends StatefulWidget {
-  const ObstacleDetection({Key? key}) : super(key: key);
+  const ObstacleDetection({super.key});
 
   @override
   State<ObstacleDetection> createState() => _ObstacleDetectionState();
@@ -26,7 +26,8 @@ class _ObstacleDetectionState extends State<ObstacleDetection> {
   late FlutterTts _tts;
   
   // Detection variables
-  double _detectionThreshold = 100.0;
+  // ignore: unused_field
+  final double _detectionThreshold = 100.0;
   int _lastAlertTime = 0;
   String _lastAlert = "";
   int _frameCount = 0;
@@ -35,7 +36,7 @@ class _ObstacleDetectionState extends State<ObstacleDetection> {
   final Random _random = Random();
   int _simulatedDistance = 500;
   String _simulatedObstacle = "clear";
-  List<String> _obstacleTypes = [
+  final List<String> _obstacleTypes = [
     "clear", "wall", "door", "furniture", "person", 
     "stairs", "curb", "pole", "animal", "vehicle"
   ];
@@ -299,6 +300,7 @@ class _ObstacleDetectionState extends State<ObstacleDetection> {
     }
     
     try {
+      // ignore: unused_local_variable
       final image = await _cameraController.takePicture();
       _speakAlert("Snapshot captured");
       
