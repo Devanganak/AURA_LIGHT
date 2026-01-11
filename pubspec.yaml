@@ -1,62 +1,49 @@
 name: auralight
-description: "A new Flutter project."
-publish_to: 'none'
+description: "Auralight - Visually Impaired Assistant"
+publish_to: "none"
+
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'  # Fixed: Use proper format
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Image picking
+  # Firebase
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.0
+
+  # Media & ML
+  camera: ^0.10.5+5
   image_picker: ^1.1.1
-  
-  # Text Recognition
   google_mlkit_text_recognition: ^0.12.0
-  
-  # Text to Speech
-  flutter_tts: ^3.8.0
-  
-  # Path provider
-  path_provider: ^2.1.4
-  
-  # Speech to Text (use stable version)
-  speech_to_text: 7.3.0  # Downgrade to stable version
-  
-  # Permission handler (FIXED: Move comment to next line)
-  permission_handler: ^12.0.0 # For permissions
-  
-  # URL Launcher
+  flutter_tts: ^3.8.5
+  audioplayers: ^6.0.0
+
+   # Speech & Emergency
+  speech_to_text: ^6.6.2
+  permission_handler: ^12.0.0
   url_launcher: ^6.1.12
 
-  # Cupertino Icons
+
+  # Storage & System
+  path_provider: ^2.1.4
+  sqflite: ^2.4.1
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
   cupertino_icons: ^1.0.8
-  
-  # Audio players
-  audioplayers: ^6.0.0
-  
-  # Camera
-  camera: ^0.10.5+5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
-  # Database
-  sqflite: ^2.0.0
-  
-  # Notifications
-  flutter_local_notifications: ^18.0.0
-  
-  # Timezone
-  timezone: ^0.9.0
-  
-  # Lints
+
   flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/

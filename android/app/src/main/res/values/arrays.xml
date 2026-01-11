@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="tts_voices">
+<<<<<<< HEAD
         <item>en-IN</item>
         <item>en-US</item>
+=======
+        <item>en-US</item>
+        <item>en-IN</item>
+>>>>>>> 5cad97d (Initial commit - AURA_LIGHT)
     </string-array>
 </resources>

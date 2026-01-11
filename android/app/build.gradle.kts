@@ -1,22 +1,36 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.auralight"
+<<<<<<< HEAD
+    compileSdk = 36
+=======
+>>>>>>> 5cad97d (Initial commit - AURA_LIGHT)
+
+    // REQUIRED by camera, image_picker, mlkit, etc.
     compileSdk = 36
 
-
-    // Required by your plugins
+    // REQUIRED by plugins
     ndkVersion = "27.0.12077973"
+
+    defaultConfig {
+        applicationId = "com.example.auralight"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-
-        // REQUIRED for flutter_local_notifications
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -24,29 +38,19 @@ android {
         jvmTarget = "11"
     }
 
-    defaultConfig {
-        applicationId = "com.example.auralight"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
-
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
         }
-
-        debug {
-            signingConfig = signingConfigs.getByName("debug")
-        }
     }
 }
 
 dependencies {
-    // REQUIRED for desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
