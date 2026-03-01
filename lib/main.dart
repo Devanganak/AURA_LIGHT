@@ -19,6 +19,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_screen.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'voice_command_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 final FlutterLocalNotificationsPlugin _globalNotificationsPlugin =
@@ -371,7 +375,7 @@ class MyApp extends StatelessWidget {
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               hintStyle: const TextStyle(fontSize: 17),
             ),
-            cardTheme: CardTheme(
+            cardTheme: CardThemeData(
               elevation: 1.5,
               margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               shape: RoundedRectangleBorder(
@@ -430,6 +434,12 @@ class _OcrCandidate {
 
 class _BillReaderScreenState extends State<BillReaderScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
+  late VoiceCommandService _voiceService;
+  
+  bool _wakeWordDetected = false;
+  Timer? _wakeTimer;
+  String _lastCommand = "";
+  DateTime _lastCommandTime = DateTime.now();
 
   File? _image;
   String _extractedText = "";
@@ -439,9 +449,17 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
   final TextRecognizer _indicTextRecognizer =
       TextRecognizer(script: TextRecognitionScript.devanagiri);
   final FlutterTts flutterTts = FlutterTts();
+  bool _assistantActive = false;
+  Timer? _assistantTimer;
   bool _isLoading = false;
+  bool _readingMode = false;
+  List<String> _sentences = [];
+int _currentSentenceIndex = 0;
+  bool _manualMicOff = false;
   bool _isSpeaking = false;
   bool _isPaused = false;
+  bool _manuallyRestarting = false;
+
   double _speechRate = 0.4;
   int _ocrSessionId = 0;
   bool? _isMalayalamTessdataReady;
@@ -541,30 +559,58 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
       ),
     );
   }
+ void _handleDoubleTap() async {
 
-  Future<void> _applySpeechRate({bool restartIfSpeaking = false}) async {
-    await flutterTts.setSpeechRate(_speechRate);
-    if (restartIfSpeaking &&
-        _isSpeaking &&
-        !_isPaused &&
-        _extractedText.isNotEmpty) {
-      // Keep current reading position; do not restart from beginning.
-      await flutterTts.pause();
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-      await flutterTts.speak(_extractedText);
+  if (_readingMode && _isSpeaking) {
+
+    await flutterTts.stop();   // Stop current sentence
+
+    setState(() {
+      _isSpeaking = false;
+      _isPaused = true;        // 🔥 Mark as paused
+    });
+
+    if (!_manualMicOff) {
+      _voiceService.startListening(_handleVoiceCommand);
     }
   }
+}
+
+
+    Future<void> _applySpeechRate({bool restartIfSpeaking = false}) async {
+  await flutterTts.setSpeechRate(_speechRate);
+
+  if (restartIfSpeaking &&
+      _isSpeaking &&
+      !_isPaused &&
+      _extractedText.isNotEmpty) {
+
+    await flutterTts.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    _speakFromCurrentSentence();
+  }
+}
+
 
   void _onSpeechRateChanged(double value) {
     setState(() => _speechRate = value);
     // Apply base rate immediately, but avoid repeated restart calls while dragging.
     _applySpeechRate();
   }
+  
 
   Future<void> _setSpeechRatePreset(double value) async {
     setState(() => _speechRate = value);
     await _applySpeechRate(restartIfSpeaking: true);
   }
+  Future<void> _speakText() async {
+  if (_extractedText.isEmpty) return;
+
+  await flutterTts.setLanguage("en-IN");
+  await flutterTts.setPitch(1.0);
+  await flutterTts.setSpeechRate(0.4);
+  await flutterTts.speak(_extractedText);
+}
 
   Widget _buildSpeechRateCard() {
     final speedPercent = (_speechRate * 100).round();
@@ -638,62 +684,333 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _configureTtsHandlers();
-    Future<void>.microtask(() => _applySpeechRate());
+ @override
+void initState() {
+  super.initState();
+
+  _voiceService = VoiceCommandService();
+
+  _initializeVoiceSystem();
+}
+Future<void> _initializeVoiceSystem() async {
+  flutterTts.setLanguage("en-IN");
+  flutterTts.setSpeechRate(0.45);
+  flutterTts.setPitch(1.0);
+
+  
+  await flutterTts.speak("Welcome to Aura Light. Say Hey Aura to begin.");
+
+  await Future.delayed(const Duration(milliseconds: 800));
+
+  var status = await Permission.microphone.request();
+
+  if (status.isGranted) {
+    bool available = await _voiceService.initialize();
+
+    if (available) {
+      _voiceService.startListening(_handleVoiceCommand);
+
+      setState(() {});   // 🔥🔥 THIS IS THE FIX
+    }
+  }
+}
+
+
+
+
+
+
+
+void _handleVoiceCommand(String command) async {
+
+
+  print("VOICE RECEIVED: $command");
+
+  command = command.toLowerCase().trim();
+
+  // 🔥 Prevent duplicate within 2 seconds
+  if (_lastCommand == command &&
+      DateTime.now().difference(_lastCommandTime).inSeconds < 2) {
+    print("Duplicate command ignored");
+    return;
   }
 
-  void _configureTtsHandlers() {
-    flutterTts.setStartHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = true;
-        _isPaused = false;
-      });
-    });
+  _lastCommand = command;
+  _lastCommandTime = DateTime.now();
 
-    flutterTts.setPauseHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = true;
-        _isPaused = true;
-      });
-    });
+  // 🔥 Stop mic BEFORE speaking
+ 
 
-    flutterTts.setContinueHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = true;
-        _isPaused = false;
-      });
-    });
-
-    flutterTts.setCompletionHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = false;
-        _isPaused = false;
-      });
-    });
-
-    flutterTts.setCancelHandler(() {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = false;
-        _isPaused = false;
-      });
-    });
-
-    flutterTts.setErrorHandler((_) {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = false;
-        _isPaused = false;
-      });
-    });
+  // WAKE WORD
+  if (command.contains("hey aura") || command.contains("hey ora")) {
+    await flutterTts.speak("Yes, how can I help you?");
   }
+
+  // CAMERA
+  else if (command.contains("camera")) {
+    await flutterTts.speak("Opening camera");
+    if (!mounted) return;
+    await _pickImage(ImageSource.camera);
+  }
+
+  // GALLERY
+  else if (command.contains("gallery") ||
+      command.contains("photo") ||
+      command.contains("image")) {
+    await flutterTts.speak("Opening gallery");
+    if (!mounted) return;
+    await _pickImage(ImageSource.gallery);
+  }
+
+  // NAVIGATION
+  else if (command.contains("navigation") ||
+      command.contains("navigate") ||
+      command.contains("walk")) {
+    await flutterTts.speak("Opening navigation");
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ObstacleDetection()),
+    );
+  }
+  // 💊 MEDICINE PRESCRIPTION READER
+else if (command.contains("medicine") ||
+         command.contains("med") ||
+         command.contains("prescription") ||
+         command.contains("tablet")) {
+
+  await flutterTts.speak("Opening medicine prescription reader");
+
+  if (!mounted) return;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const MedicineReaderScreen(),
+    ),
+  );
+}
+// CAMERA
+else if (command.contains("camera")) {
+  await flutterTts.speak("Opening camera");
+  if (!mounted) return;
+  await _pickImage(ImageSource.camera);
+}
+
+// GALLERY
+else if (command.contains("gallery") ||
+         command.contains("photo") ||
+         command.contains("image")) {
+  await flutterTts.speak("Opening gallery");
+  if (!mounted) return;
+  await _pickImage(ImageSource.gallery);
+}
+
+// 💊 MEDICINE PRESCRIPTION READER
+else if (command.contains("medicine") ||
+         command.contains("med") ||
+         command.contains("prescription") ||
+         command.contains("tablet")) {
+
+  await flutterTts.speak("Opening medicine prescription reader");
+
+  if (!mounted) return;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const MedicineReaderScreen(),
+    ),
+  );
+}
+
+// 🔴 SIMPLE MIC OFF COMMAND
+else if (command.contains("aura stop") ||
+         command.contains("aura sleep") ||
+         command.contains("sleep")) {
+
+  await flutterTts.speak("Okay, I am going to sleep");
+
+  _manualMicOff = true;
+
+  await Future.delayed(const Duration(milliseconds: 300));
+
+  _voiceService.stopListening();
+
+  if (mounted) setState(() {});
+  return;
+}
+
+  // LOGOUT
+  else if (command.contains("logout") ||
+      command.contains("log out")) {
+    await flutterTts.speak("Logging out");
+    await FirebaseAuth.instance.signOut();
+  }
+ else if (_readingMode && command.contains("start")) {
+
+  await flutterTts.stop();
+
+  _currentSentenceIndex = 0;   // 🔥 Reset index
+
+  setState(() {
+    _isPaused = false;
+    _isSpeaking = true;
+  });
+
+  await flutterTts.setSpeechRate(_speechRate);
+
+  _speakFromCurrentSentence();  // 🔥 Start from beginning
+}
+
+// RESUME
+else if (_readingMode &&
+         (command.contains("resume") ||
+          command.contains("continue"))) {
+
+  if (_isPaused) {
+
+    setState(() {
+      _isPaused = false;
+      _isSpeaking = true;
+    });
+
+    await flutterTts.setSpeechRate(_speechRate);
+
+    _speakFromCurrentSentence();   // 🔥 resume from current index
+  }
+
+  return;
+}
+else if (_readingMode && command.contains("pause")) {
+
+  if (_isSpeaking && !_isPaused) {
+    await _pauseSpeaking();
+  }
+}
+else if (_readingMode &&
+         (command.contains("stop reading") ||
+          command.contains("exit reading"))) {
+
+  await _stopSpeaking();
+  _readingMode = false;
+}
+
+// ... existing code ...
+// 🔥 SPEED CHANGE WITHOUT MIC INTERRUPTION
+// 🔥 SIMPLE SPEED CHANGE (NO MIC STOP NEEDED)
+else if (_readingMode &&
+    (command.contains("slow") ||
+     command.contains("normal") ||
+     command.contains("fast"))) {
+
+  double newSpeed = _speechRate;
+
+  if (command.contains("slow")) {
+    newSpeed = 0.3;
+  } else if (command.contains("normal")) {
+    newSpeed = 0.4;
+  } else if (command.contains("fast")) {
+    newSpeed = 0.7;
+  }
+
+  if ((newSpeed - _speechRate).abs() < 0.01) return;
+
+  setState(() {
+    _speechRate = newSpeed;
+  });
+
+  await flutterTts.stop();
+  await flutterTts.setSpeechRate(_speechRate);
+
+  if (_readingMode) {
+    _isPaused = false;
+    _isSpeaking = true;
+    _speakFromCurrentSentence();
+  }
+
+  return; // 🔥 IMPORTANT: prevent mic auto restart at bottom
+}
+
+// ... existing code ...
+
+
+
+ // READ or START → Always from beginning
+else if (command == "read" ||
+         command == "start reading" ||
+         command == "start") {
+
+  if (_extractedText.trim().isEmpty) {
+
+    await flutterTts.speak("No text is available to read.");
+
+    // 🔥 Restart mic before exiting
+    if (!_manualMicOff) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      _voiceService.startListening(_handleVoiceCommand);
+    }
+
+    return;
+  }
+
+  // 🔥 Reset everything
+  await flutterTts.stop();
+
+  _readingMode = true;
+  _currentSentenceIndex = 0;
+  _sentences.clear();
+
+  await flutterTts.speak("Starting reading");
+
+  await _startSpeaking();
+}
+
+  // HOME
+  else if (command.contains("home") ||
+      command.contains("go home") ||
+      command.contains("return home") ||
+      command.contains("back home")) {
+    await flutterTts.speak("Returning to home page");
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => BillReaderScreen()),
+      (route) => false,
+    );
+  }
+
+  // 🔥 Restart mic only ONCE at the end
+  await Future.delayed(const Duration(milliseconds: 1000));
+
+  if (mounted && !_manualMicOff) {
+  _voiceService.startListening(_handleVoiceCommand);
+}
+}
+void _toggleMic() async {
+  if (_voiceService.isListening) {
+    _voiceService.stopListening();
+  } else {
+    bool available = await _voiceService.initialize();
+    if (available) {
+      _voiceService.startListening(_handleVoiceCommand);
+    }
+  }
+
+  setState(() {});
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await picker.pickImage(source: source);
@@ -1389,34 +1706,64 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
   }
 
   Future<void> _startSpeaking() async {
-    if (_extractedText.isEmpty) return;
-    setState(() {
-      _isSpeaking = true;
-      _isPaused = false;
-    });
-    try {
-      await flutterTts.stop();
-      await _setSpeechLanguageForText(_extractedText);
-      await flutterTts.setPitch(1.0);
-      await flutterTts.setSpeechRate(_speechRate);
-      await flutterTts.speak(_extractedText);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isSpeaking = false;
-        _isPaused = false;
-      });
-    }
+  if (_extractedText.isEmpty) return;
+
+  // 🔥 Split text into sentences only first time
+  if (_sentences.isEmpty || _currentSentenceIndex == 0) {
+    _sentences =
+        _extractedText.split(RegExp(r'(?<=[.!?])\s+'));
+    _currentSentenceIndex = 0;
   }
 
-  Future<void> _pauseSpeaking() async {
-    if (!_isSpeaking || _isPaused) return;
+  setState(() {
+    _isSpeaking = true;
+    _isPaused = false;
+  });
+
+  try {
+    await flutterTts.stop();
+    await _setSpeechLanguageForText(_extractedText);
+    await flutterTts.setPitch(1.0);
+    await flutterTts.setSpeechRate(_speechRate);
+
+    _speakFromCurrentSentence(); // 🔥 new controlled reader
+
+  } catch (_) {
+    if (!mounted) return;
     setState(() {
-      _isSpeaking = true;
-      _isPaused = true;
+      _isSpeaking = false;
+      _isPaused = false;
     });
-    await flutterTts.pause();
   }
+}
+Future<void> _speakFromCurrentSentence() async {
+  if (_currentSentenceIndex >= _sentences.length) {
+    await _stopSpeaking();
+    _readingMode = false;
+    _sentences.clear();
+    _currentSentenceIndex = 0;
+    return;
+  }
+
+  flutterTts.setCompletionHandler(() {
+    if (_manuallyRestarting) return; // 🔥 Prevent auto skip on speed change
+
+    _currentSentenceIndex++;
+    _speakFromCurrentSentence();
+  });
+
+  await flutterTts.speak(_sentences[_currentSentenceIndex]);
+}
+  Future<void> _pauseSpeaking() async {
+  if (!_isSpeaking || _isPaused) return;
+
+  await flutterTts.stop();   // 🔥 safer than pause for sentence control
+
+  setState(() {
+    _isSpeaking = false;     // was true ❌
+    _isPaused = true;        // keep paused
+  });
+}
 
   Future<void> _resumeSpeaking() async {
     if (!_isPaused || _extractedText.isEmpty) return;
@@ -1450,25 +1797,47 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Auralight Assistant'),
-        centerTitle: true,
-        elevation: 4,
-        actions: [
-          // Real-Time Obstacle Detection
-          IconButton(
-            icon: const Icon(Icons.camera_alt_outlined),
-            tooltip: 'Real-Time Obstacle Detection',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ObstacleDetection(),
-                ),
-              );
-            },
+  title: const Text('Auralight Assistant'),
+  centerTitle: true,
+  backgroundColor:
+      _voiceService.isListening ? Colors.red : Colors.green,
+  elevation: 4,
+  actions: [
+    Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: GestureDetector(
+        onTap: _toggleMic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 45,
+          height: 45,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _voiceService.isListening
+                ? Colors.red.shade600
+                : Colors.grey.shade700,
+            boxShadow: _voiceService.isListening
+                ? [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.6),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    )
+                  ]
+                : [],
           ),
-        ],
+          child: Icon(
+            _voiceService.isListening
+                ? Icons.mic
+                : Icons.mic_off,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
       ),
+    ),
+  ],
+),
       drawer: Drawer(
         child: ListView(
           children: [
@@ -1620,9 +1989,13 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
           ],
         ),
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
+      body: GestureDetector(
+  behavior: HitTestBehavior.opaque,
+  onDoubleTap: _handleDoubleTap,
+  child: SafeArea(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        // Your existing content {
             final extractedPanelHeight =
                 constraints.maxHeight < 720 ? 240.0 : 300.0;
             return SingleChildScrollView(
@@ -1943,6 +2316,7 @@ class _BillReaderScreenState extends State<BillReaderScreen> {
             );
           },
         ),
+      ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

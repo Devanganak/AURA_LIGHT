@@ -14,7 +14,7 @@ android {
     compileSdk = 36
 
     // REQUIRED by plugins
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.example.auralight"
