@@ -72,3 +72,4 @@ pauseFor: const Duration(seconds: 10),  // wait longer before timeout   // 🔥 
     _speech.stop();
   }
 }
+//updated voice
